@@ -1,0 +1,55 @@
+---
+title: "NCEAS_test"
+output:  
+html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+```
+
+# Introduction
+
+I downloaded the file [BGchem2008data.csv](https://arcticdata.io/catalog/view/doi:10.18739/A25T3FZ8X) from the Arctic Data Center (doi:10.18739/A25T3FZ8X)
+
+1. read in data
+
+```{r chunkerooni, message=FALSE}
+bg_chem <- read_csv("BGchem2008data.csv")
+  
+```
+
+# Analysis
+
+We are interested in nutrient concentrations over the whole water column, so we calculated the mean value of nutrients of interest (nitrate, nitrite, ammonium, and phosphate)
+
+```{r sumstats}
+
+nitrate <- mean(bg_chem$NO3)
+nitrite <- mean(bg_chem$NO2)
+amm <- mean(bg_chem$NH4)
+phos <- mean(bg_chem$P)
+
+```
+
+1. calculate mean Redfield ratio
+
+```{r}
+
+ratio <- (nitrate + nitrite + amm) / phos
+```
+
+We calculated the Redfield ratio to be `r round(ratio)`
+
+1. plot Redfield ratio
+
+```{r, echo = FALSE}
+
+plot(bg_chem$P, bg_chem$NO2 + bg_chem$NO3 + bg_chem$NH4)
+
+```
+
