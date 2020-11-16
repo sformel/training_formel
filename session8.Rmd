@@ -1,0 +1,96 @@
+---
+title: "Session 8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load packages, message = FALSE}
+
+library(dplyr)
+library(tidyr)
+library(readr)
+
+```
+
+## Data Sources
+
+### read in the data
+
+Use read_csv from readr package because it can read data directly from the web.  Apparently there is a google drive package to load things in directly from google drive.  These are ways to make the R markdown self-contained.
+
+```{r load data}
+
+catch_original <- read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1")
+
+```
+
+## Clean and Reshape data
+
+### remove unnecessary columns
+
+```{r}
+
+catch_data <- catch_original %>% 
+  select(-All, -notesRegCode)
+
+```
+### check column typing
+
+```{r}
+
+catch_clean <- catch_data %>% 
+  mutate(Chinook = ifelse(Chinook== "I", 1, Chinook)) %>%
+  mutate(Chinook = as.numeric(Chinook))
+
+```
+
+### reshape data
+
+gather was renamed to pivot_longer and pivot_wider in tidyr
+
+```{r}
+
+catch_long <- catch_clean %>% 
+  pivot_longer(-c(Region, Year), names_to = "species", values_to = "catch")
+
+catch_wide <- catch_long %>% 
+  pivot_wider(names_from = "species", values_from = "catch")
+
+#rename unit of catch
+catch_long <- catch_long %>% 
+  rename(catch_thousands = catch) 
+
+catch_long <- catch_long %>% 
+  mutate(catch = catch_thousands*1000) %>% 
+  select(-catch_thousands)
+
+```
+
+```{r example summary stats}
+
+mean_region <- catch_long %>% 
+  group_by(Region) %>% 
+  summarise(catch_mean = mean(catch)) %>% 
+  arrange(catch_mean)
+
+n_region <- catch_long %>% 
+  group_by(Region) %>% 
+  summarise(n = n())
+
+SSE_catch <- catch_long %>% 
+  filter(Region == "SSE")
+
+```
+
+## Join to Regions dataset
+
+```{r load regions data, message=FALSE}
+
+region_defs <- read_csv("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1") %>% 
+  select(code, mgmtArea)
+
+```
+
