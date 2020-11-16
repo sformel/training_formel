@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Stevosphere"
 output: html_document
 ---
 
@@ -7,22 +7,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## What it is and what it isn't
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Live and direct.  The Steve-o-sphere.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+## Links of Interest
 
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+- [My website](sformel.github.io)
+- [Session 8](session8.html)
+- [Intro to R Markdown](intro_to_r_markdown.html)
