@@ -1,0 +1,109 @@
+---
+title: "GGPLOT_sesh"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r , message=FALSE}
+
+library(leaflet)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(DT)
+library(scales)
+library(knitr)
+
+```
+
+```{r , load data}
+
+data_url <- "https://knb.ecoinformatics.org/knb/d1/mn/v2/object/urn%3Auuid%3Af119a05b-bbe7-4aea-93c6-85434dcb1c5e"
+
+esc <- tryCatch(
+    read.csv("data/escapement.csv", stringsAsFactors = FALSE),
+    error=function(cond) {
+        message(paste("Escapement file does not seem to exist, so get it from the KNB."))
+        esc <- read.csv(url(data_url, method = "libcurl"), stringsAsFactors = FALSE)
+        return(esc)
+    }
+)
+
+head(esc)
+
+```
+
+### Annual Escapement by Species and Region
+
+```{r}
+
+annual_esc <- esc %>%
+  separate(col = sampleDate, into = c("year", "month", "day"), sep = "-") %>% 
+  mutate(year = as.numeric(year)) %>% 
+  group_by(SASAP.Region, year, Species) %>% 
+  summarise(escapement = sum(DailyCount)) %>% 
+  filter(Species %in% c("Sockeye", "Chum", "Coho", "Pink", "Chinook"))
+
+```
+
+### GGPLOT
+
+```{r ggplot}
+
+ggplot(annual_esc, mapping = aes(x = Species, y = escapement, fill = SASAP.Region)) +
+  geom_col()
+
+```
+
+## Tables
+```{r}
+
+locations <- esc %>% 
+    distinct(Location, Latitude, Longitude) %>% 
+  drop_na()
+
+datatable(locations)
+
+```
+
+##Static tables
+```{r}
+
+kable(locations)
+
+```
+
+
+#Leaftlet
+
+```{r interactive maps}
+
+leaflet(locations) %>% 
+  addTiles() %>% 
+  addMarkers(lng = ~ Longitude, popup = ~ Location)
+```
+
+```{r}
+
+leaflet(locations) %>% 
+  addWMSTiles("https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?",
+              layers = 'GEBCO_LATEST',
+              attribution = "Imagery reproduced from the GEBCO_2014 Grid, version 20150318, www.gebco.net") %>%
+  addCircleMarkers(lng = ~Longitude,
+                   lat = ~Latitude,
+                   popup = ~ Location,
+                   radius = 5,
+                   # set fill properties
+                   fillColor = "salmon",
+                   fillOpacity = 1,
+                   # set stroke properties
+                   stroke = T,
+                   weight = 0.5,
+                   color = "white",
+                   opacity = 1)
+
+```
+
