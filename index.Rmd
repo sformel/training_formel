@@ -16,4 +16,4 @@ Live and direct.  The Steve-o-sphere.
 - [My website](http://sformel.github.io/index.html)
 - [Session 8](session8.html)
 - [Intro to R Markdown](intro_to_r_markdown.html)
-- [ggplot and leaflet](GGLPOT_sesh.html)
+- [ggplot and leaflet](GGPLOT_sesh.html)
