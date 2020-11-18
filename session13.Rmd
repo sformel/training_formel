@@ -7,3 +7,173 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r load libraries}
+
+library(sf)
+library(dplyr)
+library(ggplot2)
+library(leaflet)
+library(scales)
+library(ggmap)
+
+```
+
+## Load Data
+
+```{r}
+
+## Read in shapefile using sf
+ak_regions <- read_sf("shapefiles/ak_regions_simp.shp")
+
+plot(ak_regions)  
+head(ak_regions) # projection is all funky
+st_crs(ak_regions)
+```
+
+## Transform georeference system 
+
+to accomodate AK being so far north
+
+```{r}
+
+ak_regions_3338 <- ak_regions %>%
+  st_transform(crs = 3338)
+
+st_crs(ak_regions_3338)
+
+plot(ak_regions_3338)
+```
+
+## read in population data
+
+```{r}
+
+pop <- read.csv("shapefiles/alaska_population.csv")
+
+```
+
+Make into sf class with WGS84 for crs
+
+```{r}
+
+pop_4326 <- st_as_sf(pop,
+                     coords = c("lng", "lat"),
+                     crs = 4326,
+                     remove = FALSE)
+
+```
+
+join
+
+```{r}
+
+pop_joined <- st_join(pop_4326, ak_regions_3338, join = st_within)
+
+```
+
+error because of differetn crs
+
+```{r}
+
+pop_3338 <- st_transform(pop_4326, crs = 3338)
+
+pop_joined <- st_join(pop_3338, ak_regions_3338, join = st_within)
+
+head(pop_joined)
+plot(pop_joined)
+
+```
+
+change to data frame.  See ?sf::tidyverse
+
+```{r}
+
+pop_region <- pop_joined %>% 
+  as.data.frame() %>% 
+  group_by(region) %>% 
+  summarise(total_pop = sum(population))
+
+pop_region_3338 <- left_join(ak_regions_3338, pop_region, by = "region")
+
+plot(pop_region_3338)
+
+```
+
+```{r}
+
+pop_mgmt_338 <- pop_region_3338 %>% 
+  group_by(mgmt_area) %>% 
+  summarize(total_pop = sum(total_pop))
+
+#make union false
+pop_mgmt_338 <- pop_region_3338 %>% 
+  group_by(mgmt_area) %>% 
+  summarize(total_pop = sum(total_pop), do_union = FALSE)
+
+plot(pop_mgmt_338)
+```
+
+read in rivers dataset
+
+```{r}
+
+rivers <- read_sf("shapefiles/ak_rivers_simp.shp")
+
+```
+
+charge ahead with the plots
+
+Don't need to set x and y because geom_sf knows to use geometry field
+```{r}
+
+  ggplot() +
+  geom_sf(data = pop_region_3338,
+          mapping = aes(fill = total_pop)) +
+  geom_sf(data = rivers,
+          aes(size = StrOrder)) +
+  geom_sf(data = pop_3338,
+          size = 0.5) +
+  theme_bw() +
+  labs(fill = "Total Population") +
+  scale_fill_continuous(low = "khaki", high = "firebrick", labels = comma) +
+  scale_size_continuous(range = c(0.01, 0.2))
+
+```
+
+## Base Maps
+
+```{r}
+
+pop_3857 <- pop_3338 %>%
+  st_transform(crs = 3857)
+
+# Define a function to fix the bbox to be in EPSG:3857
+# See https://github.com/dkahle/ggmap/issues/160#issuecomment-397055208
+ggmap_bbox_to_3857 <- function(map) {
+  if (!inherits(map, "ggmap")) stop("map must be a ggmap object")
+  # Extract the bounding box (in lat/lon) from the ggmap to a numeric vector, 
+  # and set the names to what sf::st_bbox expects:
+  map_bbox <- setNames(unlist(attr(map, "bb")), 
+                       c("ymin", "xmin", "ymax", "xmax"))
+  
+  # Coonvert the bbox to an sf polygon, transform it to 3857, 
+  # and convert back to a bbox (convoluted, but it works)
+  bbox_3857 <- st_bbox(st_transform(st_as_sfc(st_bbox(map_bbox, crs = 4326)), 3857))
+  
+  # Overwrite the bbox of the ggmap object with the transformed coordinates 
+  attr(map, "bb")$ll.lat <- bbox_3857["ymin"]
+  attr(map, "bb")$ll.lon <- bbox_3857["xmin"]
+  attr(map, "bb")$ur.lat <- bbox_3857["ymax"]
+  attr(map, "bb")$ur.lon <- bbox_3857["xmax"]
+  map
+}
+
+bbox <- c(-170, 52, -130, 64)   # This is roughly southern Alaska
+ak_map <- get_stamenmap(bbox, zoom = 4)
+ak_map_3857 <- ggmap_bbox_to_3857(ak_map)
+
+ggmap(ak_map_3857) + 
+  geom_sf(data = pop_3857, aes(color = population), inherit.aes = F) +
+  scale_color_continuous(low = "khaki", high =  "firebrick", labels = comma)
+```
+
