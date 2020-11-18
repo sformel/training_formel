@@ -1,0 +1,120 @@
+---
+title: "Session12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Session 12 Exercise
+
+Using our knowledge of R, we are going to try to answer the following two questions:
+  
+1. What species of predator is the most abundant and has this changed through time?
+
+2. Does the number of eggs predated increase with the total number of predators for all species laying nests?
+
+```{r load libraries and data}
+
+library(rvest)
+library(readr)
+library(dplyr)
+library(janitor)
+
+predator_surveys <- read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A9ffec04c-7e2d-41dd-9e88-b6c2e8c4375e")
+
+nest <- read_csv("https://arcticdata.io/metacat/d1/mn/v2/object/urn%3Auuid%3A982bd2fc-4edf-4da7-96ef-0d11b853102d")
+
+webpage <- read_html("https://www.pwrc.usgs.gov/bbl/manual/speclist.cfm")
+
+tbls <- html_nodes(webpage, "table") %>% 
+  html_table(fill = TRUE)
+
+species <- tbls[[1]] %>% 
+  clean_names() %>% 
+  select(alpha_code, common_name) %>% 
+  mutate(alpha_code = tolower(alpha_code))
+
+```
+
+## Write a function that will translate species codes into common names.
+
+Hint: The fastest way to do this involves adding a column to the data.frame. Your function will have two arguments
+
+Optional Extra Challenge: For a little extra challenge, try to incorporate an if statement that looks for NA values in the common name field you are adding. What other conditionals might you include to make your function smarter?
+
+```{r}
+
+#' Function to add common name to data.frame according to the BBL list of species codes
+
+#' @param df A data frame containing BBL species codes in column `species`
+#' @param species A data frame defining BBL species codes with columns `alpha_code` and `common_name`
+#' @return A data frame with original data df, plus the common name of species
+
+assign_species_name <- function(df, species){
+    if (!("alpha_code" %in% names(species)) |
+        !("species" %in% names(df)) |
+        !("common_name" %in% names(species))){
+      stop("Tables appear to be formatted incorrectly.")
+    }  
+  
+    return_df <- left_join(df, species, by = c("species" = "alpha_code"))
+    
+    if (nrow(return_df) > nrow(df)){
+      warning("Joined table has more rows than original table. Check species table for duplicated code values.")
+    }
+    
+    if (length(which(is.na(return_df$common_name))) > 0){
+      x <- length(which(is.na(return_df$common_name)))
+      warning(paste("Common name has", x, "rows containing NA"))
+    }
+    
+    return(return_df)
+        
+}
+
+```
+
+
+## Calculate total number of predators by year and species, and plot the result.
+
+
+```{r Table 1}
+
+pred_sum <- assign_species_name(df = predator_surveys, species = species) %>%
+  select(year, common_name, count) %>% 
+  group_by(common_name, year) %>% 
+  summarise(pred_count = sum(count, na.rm = TRUE)) %>% 
+  arrange(year, common_name)
+
+nest$plot
+
+```
+
+## plot predators by year and species
+
+```{r}
+
+pred_sum %>% 
+  ggplot(aes(x = year, 
+             y = pred_count,
+             color = factor(common_name))) + 
+  geom_point() +
+  geom_line()
+
+  
+
+```
+
+
+## Calculate total number of eggs predated by year and species.
+```{r Table 2}
+
+nest %>% 
+  left_join(x = ., y = species, by = c("species" = "alpha_code")) %>% 
+  
+
+```
+
+## Calculate total number of predators by year, join to summarized egg predation table, and plot the result.
